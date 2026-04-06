@@ -7,7 +7,6 @@ local Players = game:GetService("Players")
 local StarterGui = game:GetService("StarterGui")
 local player = Players.LocalPlayer
 
--- SETTINGS
 _G.finderMenu = false
 _G.xray = false
 
@@ -30,7 +29,7 @@ local function notify(msg)
     end)
 end
 
--- BELL SOUND
+-- BELL
 local function playBell()
     local sound = Instance.new("Sound")
     sound.SoundId = "rbxassetid://9118823104"
@@ -61,32 +60,48 @@ function setBase()
     notify("Base Saved")
 end
 
--- TP TO BASE (ANTI SNAP BACK)
+-- TP TO BASE (NO DEATH)
 function tpToBase()
     if not basePosition then
         notify("Set Base First")
         return
     end
 
+    local char = player.Character
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hrp = getHRP()
+
+    if hum then hum.PlatformStand = true end
+
     stepTeleport(basePosition)
 
-    local hrp = getHRP()
-    for i = 1, 20 do
-        hrp.CFrame = CFrame.new(basePosition + Vector3.new(0,4,0))
-        task.wait(0.05)
+    for i = 1, 25 do
+        hrp.CFrame = CFrame.new(basePosition + Vector3.new(0,5,0))
+        task.wait(0.04)
     end
+
+    if hum then hum.PlatformStand = false end
 end
 
--- PARSE MONEY
-local function parseMoney(str)
-    if not str then return 0 end
-    str = string.lower(str)
+-- MONEY PARSER
+local function parseMoney(text)
+    if not text then return 0 end
+    text = string.lower(text)
 
-    if str:find("b") then return tonumber(str:gsub("b",""))*1e9 end
-    if str:find("m") then return tonumber(str:gsub("m",""))*1e6 end
-    if str:find("k") then return tonumber(str:gsub("k",""))*1e3 end
+    local num = string.match(text, "%d+%.?%d*")
+    if not num then return 0 end
 
-    return tonumber(str) or 0
+    num = tonumber(num)
+
+    if text:find("b") then
+        num = num * 1e9
+    elseif text:find("m") then
+        num = num * 1e6
+    elseif text:find("k") then
+        num = num * 1e3
+    end
+
+    return num
 end
 
 -- GRAB BRAINROT
@@ -96,26 +111,46 @@ local function grabBrainrot(model)
         return
     end
 
-    local target = model:FindFirstChild("HumanoidRootPart")
-    if target then
-        stepTeleport(target.Position)
-        task.wait(0.4)
+    local targetPart =
+        model:FindFirstChild("HumanoidRootPart") or
+        model:FindFirstChild("Head") or
+        model:FindFirstChildWhichIsA("BasePart")
+
+    if targetPart then
+        notify("Grabbing...")
+
+        stepTeleport(targetPart.Position)
+        task.wait(0.5)
+
+        local grabbed = false
 
         for _, v in pairs(model:GetDescendants()) do
             if v:IsA("ProximityPrompt") then
                 fireproximityprompt(v)
+                grabbed = true
             end
         end
 
-        task.wait(0.4)
+        if not grabbed then
+            notify("No prompt found")
+        end
+
+        task.wait(0.5)
+
+        local char = player.Character
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local hrp = getHRP()
+
+        if hum then hum.PlatformStand = true end
 
         stepTeleport(basePosition)
 
-        local hrp = getHRP()
-        for i = 1, 20 do
-            hrp.CFrame = CFrame.new(basePosition + Vector3.new(0,4,0))
-            task.wait(0.05)
+        for i = 1, 25 do
+            hrp.CFrame = CFrame.new(basePosition + Vector3.new(0,5,0))
+            task.wait(0.04)
         end
+
+        if hum then hum.PlatformStand = false end
     end
 end
 
@@ -142,16 +177,20 @@ end)
 task.spawn(function()
     while task.wait(3) do
         if _G.finderMenu then
-            for _, v in pairs(workspace:GetDescendants()) do
-                if v:IsA("TextLabel") and v.Text and v.Text:find("/sec") then
-                    local money = parseMoney(v.Text)
-                    if money >= 100000000 then
-                        local model = v:FindFirstAncestorOfClass("Model")
-                        if model then
-                            notify("Brainrot Found: "..v.Text)
-                            playBell()
-                            grabBrainrot(model)
-                            task.wait(2)
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+                    if obj.Text and string.find(string.lower(obj.Text), "sec") then
+                        local money = parseMoney(obj.Text)
+
+                        if money >= 100000000 then
+                            local model = obj:FindFirstAncestorOfClass("Model")
+
+                            if model then
+                                notify("Found: "..obj.Text)
+                                playBell()
+                                grabBrainrot(model)
+                                task.wait(5)
+                            end
                         end
                     end
                 end
@@ -177,7 +216,7 @@ frame.Draggable = true
 
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1,0,0,30)
-title.Text = "GLOK HUB V6"
+title.Text = "GLOK HUB V7"
 title.TextColor3 = Color3.new(1,1,1)
 title.BackgroundColor3 = Color3.fromRGB(20,20,20)
 
