@@ -11,7 +11,7 @@ repeat task.wait() until player.Character
 repeat task.wait() until player.Character:FindFirstChild("HumanoidRootPart")
 
 -- SETTINGS
-local Settings = {
+getgenv().Settings = {
     AutoGrab = false,
     ESPPlayers = false,
     ESPBrainrot = false,
@@ -26,15 +26,6 @@ local basePosition = nil
 local visitedServers = {}
 
 -- NOTIFY
-local function playBell()
-    local sound = Instance.new("Sound")
-    sound.SoundId = "rbxassetid://9118823104"
-    sound.Volume = 3
-    sound.Parent = workspace
-    sound:Play()
-    game.Debris:AddItem(sound, 3)
-end
-
 local function notify(msg)
     pcall(function()
         StarterGui:SetCore("SendNotification", {
@@ -43,14 +34,11 @@ local function notify(msg)
             Duration = 5
         })
     end)
-    playBell()
 end
-
-notify("glok hub loaded")
 
 -- GUI
 local gui = Instance.new("ScreenGui")
-pcall(function() gui.Parent = game.CoreGui end)
+gui.Parent = player.PlayerGui
 
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0,260,0,420)
@@ -104,97 +92,16 @@ makeToggle("Auto Execute", 280, "AutoExecute")
 
 makeButton("Set Base", 320, function()
     basePosition = player.Character.HumanoidRootPart.Position
-    notify("Base position set!")
+    notify("Base Set")
 end)
 
-makeButton("TP To Base", 360, function()
+makeButton("TP Base", 360, function()
     if basePosition then
         player.Character.HumanoidRootPart.CFrame = CFrame.new(basePosition)
     else
-        notify("Set base first!")
+        notify("Set Base First")
     end
 end)
-
--- XRAY
-RunService.RenderStepped:Connect(function()
-    if Settings.XRay then
-        for _, v in pairs(workspace:GetDescendants()) do
-            if v:IsA("BasePart") then
-                v.LocalTransparencyModifier = 0.5
-            end
-        end
-    end
-end)
-
--- ESP PLAYERS
-RunService.RenderStepped:Connect(function()
-    if Settings.ESPPlayers then
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= player and p.Character then
-                if not p.Character:FindFirstChild("Highlight") then
-                    Instance.new("Highlight", p.Character)
-                end
-            end
-        end
-    end
-end)
-
--- ESP BRAINROT
-local function espBrainrot(model)
-    if Settings.ESPBrainrot and model then
-        if not model:FindFirstChild("Highlight") then
-            Instance.new("Highlight", model)
-        end
-    end
-end
-
--- MONEY PARSER
-local function parseMoney(str)
-    if not str then return 0 end
-    str = tostring(str):lower()
-    if str:find("b") then
-        return tonumber(str:gsub("b","")) * 1000000000
-    elseif str:find("m") then
-        return tonumber(str:gsub("m","")) * 1000000
-    elseif str:find("k") then
-        return tonumber(str:gsub("k","")) * 1000
-    end
-    return tonumber(str) or 0
-end
-
--- FIND BRAINROT
-local function findBrainrot()
-    for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("TextLabel") or v:IsA("StringValue") then
-            local val = parseMoney(v.Text or v.Value)
-            if val >= MoneyTarget then
-                return v:FindFirstAncestorOfClass("Model")
-            end
-        end
-    end
-end
-
--- AUTO GRAB
-local function grabBrainrot(model)
-    if not model then return end
-    if not Settings.AutoGrab then return end
-
-    local hrp = player.Character.HumanoidRootPart
-
-    for _, part in pairs(model:GetDescendants()) do
-        if part:IsA("ProximityPrompt") then
-            hrp.CFrame = part.Parent.CFrame + Vector3.new(0,3,0)
-            task.wait(0.3)
-            fireproximityprompt(part)
-            task.wait(0.5)
-
-            if basePosition then
-                hrp.CFrame = CFrame.new(basePosition)
-            end
-            break
-        end
-    end
-end
 
 -- SERVER HOP
 local function hopServer()
@@ -211,18 +118,58 @@ local function hopServer()
     end
 end
 
--- LOOP
+-- FIND BRAINROT
+local function findBrainrot()
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("TextLabel") then
+            local text = string.lower(v.Text)
+            if string.find(text, "m/sec") then
+                local num = tonumber(string.match(text, "%d+"))
+                if num and num >= 100 then
+                    return v:FindFirstAncestorOfClass("Model")
+                end
+            end
+        end
+    end
+end
+
+-- AUTO GRAB
+local function grabBrainrot(model)
+    if not Settings.AutoGrab then return end
+    if not model then return end
+
+    local hrp = player.Character.HumanoidRootPart
+
+    for _, v in pairs(model:GetDescendants()) do
+        if v:IsA("ProximityPrompt") then
+            hrp.CFrame = v.Parent.CFrame + Vector3.new(0,3,0)
+            task.wait(0.3)
+            fireproximityprompt(v)
+            task.wait(0.5)
+
+            if basePosition then
+                hrp.CFrame = CFrame.new(basePosition)
+            end
+            break
+        end
+    end
+end
+
+-- MAIN LOOP (FIXED)
 spawn(function()
-    while task.wait(3) do
+    while task.wait(2) do
         local brainrot = findBrainrot()
+
         if brainrot then
-            notify("100M+/sec Brainrot Found!")
-            espBrainrot(brainrot)
-            if Settings.AutoExecute then
+            notify("100M Brainrot Found!")
+
+            if Settings.AutoExecute and Settings.AutoGrab then
                 grabBrainrot(brainrot)
             end
         else
-            hopServer()
+            if Settings.ServerHop then
+                hopServer()
+            end
         end
     end
 end)
