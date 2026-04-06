@@ -11,15 +11,17 @@ repeat task.wait() until player.Character
 repeat task.wait() until player.Character:FindFirstChild("HumanoidRootPart")
 
 -- SETTINGS
-getgenv().MoneyTarget = 100000000
-getgenv().AutoGrab = false
-getgenv().ESPPlayers = false
-getgenv().ESPBrainrot = false
-getgenv().XRay = false
-getgenv().Desync = false
-getgenv().ServerHop = false
-getgenv().AutoExecute = false
+local Settings = {
+    AutoGrab = false,
+    ESPPlayers = false,
+    ESPBrainrot = false,
+    XRay = false,
+    Desync = false,
+    ServerHop = false,
+    AutoExecute = false
+}
 
+local MoneyTarget = 100000000
 local basePosition = nil
 local visitedServers = {}
 
@@ -63,7 +65,7 @@ title.Text = "GLOK HUB"
 title.TextColor3 = Color3.new(1,1,1)
 title.BackgroundColor3 = Color3.fromRGB(20,20,20)
 
-local function makeButton(name, posY, callback)
+local function makeToggle(name, posY, settingName)
     local button = Instance.new("TextButton", frame)
     button.Size = UDim2.new(1,-20,0,30)
     button.Position = UDim2.new(0,10,0,posY)
@@ -72,26 +74,33 @@ local function makeButton(name, posY, callback)
     button.BackgroundColor3 = Color3.fromRGB(40,40,40)
 
     button.MouseButton1Click:Connect(function()
-        callback(button)
+        Settings[settingName] = not Settings[settingName]
+        if Settings[settingName] then
+            button.BackgroundColor3 = Color3.fromRGB(0,170,0)
+        else
+            button.BackgroundColor3 = Color3.fromRGB(40,40,40)
+        end
     end)
 end
 
-local function toggle(setting, button)
-    getgenv()[setting] = not getgenv()[setting]
-    if getgenv()[setting] then
-        button.BackgroundColor3 = Color3.fromRGB(0,170,0)
-    else
-        button.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    end
+local function makeButton(name, posY, callback)
+    local button = Instance.new("TextButton", frame)
+    button.Size = UDim2.new(1,-20,0,30)
+    button.Position = UDim2.new(0,10,0,posY)
+    button.Text = name
+    button.TextColor3 = Color3.new(1,1,1)
+    button.BackgroundColor3 = Color3.fromRGB(70,70,70)
+
+    button.MouseButton1Click:Connect(callback)
 end
 
-makeButton("Auto Grab", 40, function(b) toggle("AutoGrab", b) end)
-makeButton("ESP Players", 80, function(b) toggle("ESPPlayers", b) end)
-makeButton("ESP Brainrot", 120, function(b) toggle("ESPBrainrot", b) end)
-makeButton("X-Ray", 160, function(b) toggle("XRay", b) end)
-makeButton("Desync", 200, function(b) toggle("Desync", b) end)
-makeButton("Server Hop", 240, function(b) toggle("ServerHop", b) end)
-makeButton("Auto Execute", 280, function(b) toggle("AutoExecute", b) end)
+makeToggle("Auto Grab", 40, "AutoGrab")
+makeToggle("ESP Players", 80, "ESPPlayers")
+makeToggle("ESP Brainrot", 120, "ESPBrainrot")
+makeToggle("X-Ray", 160, "XRay")
+makeToggle("Desync", 200, "Desync")
+makeToggle("Server Hop", 240, "ServerHop")
+makeToggle("Auto Execute", 280, "AutoExecute")
 
 makeButton("Set Base", 320, function()
     basePosition = player.Character.HumanoidRootPart.Position
@@ -108,7 +117,7 @@ end)
 
 -- XRAY
 RunService.RenderStepped:Connect(function()
-    if getgenv().XRay then
+    if Settings.XRay then
         for _, v in pairs(workspace:GetDescendants()) do
             if v:IsA("BasePart") then
                 v.LocalTransparencyModifier = 0.5
@@ -119,7 +128,7 @@ end)
 
 -- ESP PLAYERS
 RunService.RenderStepped:Connect(function()
-    if getgenv().ESPPlayers then
+    if Settings.ESPPlayers then
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= player and p.Character then
                 if not p.Character:FindFirstChild("Highlight") then
@@ -132,7 +141,7 @@ end)
 
 -- ESP BRAINROT
 local function espBrainrot(model)
-    if model and getgenv().ESPBrainrot then
+    if Settings.ESPBrainrot and model then
         if not model:FindFirstChild("Highlight") then
             Instance.new("Highlight", model)
         end
@@ -153,12 +162,12 @@ local function parseMoney(str)
     return tonumber(str) or 0
 end
 
--- FIND HIGH VALUE
+-- FIND BRAINROT
 local function findBrainrot()
     for _, v in pairs(workspace:GetDescendants()) do
         if v:IsA("TextLabel") or v:IsA("StringValue") then
             local val = parseMoney(v.Text or v.Value)
-            if val >= getgenv().MoneyTarget then
+            if val >= MoneyTarget then
                 return v:FindFirstAncestorOfClass("Model")
             end
         end
@@ -167,7 +176,9 @@ end
 
 -- AUTO GRAB
 local function grabBrainrot(model)
-    if not model or not getgenv().AutoGrab then return end
+    if not model then return end
+    if not Settings.AutoGrab then return end
+
     local hrp = player.Character.HumanoidRootPart
 
     for _, part in pairs(model:GetDescendants()) do
@@ -187,6 +198,7 @@ end
 
 -- SERVER HOP
 local function hopServer()
+    if not Settings.ServerHop then return end
     local placeId = game.PlaceId
     local url = "https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"
     local data = HttpService:JSONDecode(game:HttpGet(url))
@@ -206,10 +218,10 @@ spawn(function()
         if brainrot then
             notify("100M+/sec Brainrot Found!")
             espBrainrot(brainrot)
-            if getgenv().AutoExecute then
+            if Settings.AutoExecute then
                 grabBrainrot(brainrot)
             end
-        elseif getgenv().ServerHop then
+        else
             hopServer()
         end
     end
